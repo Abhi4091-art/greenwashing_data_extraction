@@ -1,4 +1,23 @@
-# 🌿 FTSE 100 Greenwashing Detection Pipeline
+# FTSE 100 Greenwashing Detection Pipeline (GCP extension)
+
+Fork of a 5-person UCL MSIN0166 Data Engineering group project
+([original repo](https://github.com/vedantbhatiaa/greenwashing_data_extraction)).
+The original pipeline scrapes company ESG claims, pulls news and Reddit
+signals, joins everything in Spark, and scores greenwashing risk in DuckDB
+and a Streamlit dashboard.
+
+This fork moves the pipeline onto Google Cloud and measures what that costs.
+
+## What this fork adds
+
+- [ ] Raw and processed data loaded into BigQuery
+- [ ] Spark join and scoring step running on Dataproc Serverless
+- [ ] Cost and runtime benchmark: local Spark/DuckDB vs BigQuery/Dataproc
+- [ ] Gemini-based claim classifier with a small labelled evaluation set
+
+The original project README follows below.
+
+---
 
 A fully automated end-to-end data engineering pipeline that detects potential greenwashing among FTSE 100 companies by comparing self-reported ESG claims against independent data sources.
 
