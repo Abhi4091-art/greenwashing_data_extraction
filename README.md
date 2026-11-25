@@ -13,7 +13,6 @@ This fork moves the pipeline onto Google Cloud and measures what that costs.
 - [x] Raw and processed data loaded into BigQuery (`gcp/01_load_bigquery.sh`)
 - [x] Spark join and scoring step running on Dataproc Serverless (`gcp/02_run_dataproc.sh`)
 - [x] Cost and runtime benchmark: local Spark vs Dataproc Serverless vs BigQuery SQL (`gcp/04_benchmark.py`)
-- [ ] Gemini-based claim classifier with a small labelled evaluation set
 
 ## Benchmark results
 
