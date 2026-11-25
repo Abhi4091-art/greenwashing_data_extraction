@@ -12,7 +12,7 @@ This fork moves the pipeline onto Google Cloud and measures what that costs.
 
 - [x] Raw and processed data loaded into BigQuery
 - [x] Spark join and scoring step running on Dataproc Serverless
-- [ ] Cost and runtime benchmark: local Spark/DuckDB vs BigQuery/Dataproc
+- [X] Cost and runtime benchmark: local Spark/DuckDB vs BigQuery/Dataproc
 - [ ] Gemini-based claim classifier with a small labelled evaluation set
 
 The original project README follows below.

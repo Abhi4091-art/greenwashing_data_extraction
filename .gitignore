@@ -1,0 +1,10 @@
+data/bench/
+data/bench_out/
+gcp/logs/
+.env
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+spark-warehouse/
+data/spark-temp/
+.DS_Store

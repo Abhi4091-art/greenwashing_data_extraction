@@ -17,6 +17,8 @@ Prints wall-clock time per stage so the local and cloud runs can be compared.
 """
 
 import argparse
+import json
+import os
 import time
 from datetime import datetime, timezone
 
@@ -40,7 +42,10 @@ def read(spark, source, ref):
 
 
 def write(df, source, ref):
-    if source == "parquet":
+    if ref == "noop":
+        # runs the full plan but discards the output: compute-only benchmark, no disk needed
+        df.write.format("noop").mode("overwrite").save()
+    elif source == "parquet":
         df.write.mode("overwrite").parquet(ref)
     else:
         # direct write uses the BigQuery Storage Write API, no temp GCS bucket needed
@@ -85,7 +90,11 @@ def main():
     args = parse_args()
     t0 = time.time()
 
-    spark = SparkSession.builder.appName("greenwashing-risk-scoring").getOrCreate()
+    builder = SparkSession.builder.appName("greenwashing-risk-scoring")
+    if args.source == "parquet":
+        # local runs only: give the driver enough memory for the 10M benchmark
+        builder = builder.config("spark.driver.memory", os.environ.get("SPARK_DRIVER_MEMORY", "4g"))
+    spark = builder.getOrCreate()
     spark.sparkContext.setLogLevel("WARN")
     t_start = time.time()
 
@@ -104,7 +113,8 @@ def main():
     print(f"[timing] write_s={t_write - t_compute:.2f}")
     print(f"[timing] total_s={t_write - t0:.2f}")
 
-    (result.groupBy("risk_category").count().orderBy("risk_category").show())
+    counts = {r["risk_category"]: r["count"] for r in result.groupBy("risk_category").count().collect()}
+    print("[result] " + json.dumps(dict(sorted(counts.items()))))
     spark.stop()
 
 
