@@ -10,10 +10,66 @@ This fork moves the pipeline onto Google Cloud and measures what that costs.
 
 ## What this fork adds
 
-- [x] Raw and processed data loaded into BigQuery
-- [x] Spark join and scoring step running on Dataproc Serverless
-- [X] Cost and runtime benchmark: local Spark/DuckDB vs BigQuery/Dataproc
+- [x] Raw and processed data loaded into BigQuery (`gcp/01_load_bigquery.sh`)
+- [x] Spark join and scoring step running on Dataproc Serverless (`gcp/02_run_dataproc.sh`)
+- [x] Cost and runtime benchmark: local Spark vs Dataproc Serverless vs BigQuery SQL (`gcp/04_benchmark.py`)
 - [ ] Gemini-based claim classifier with a small labelled evaluation set
+
+## Benchmark results
+
+The real pipeline only has 10 companies, which says nothing about cost or speed.
+So `gcp/03_generate_benchmark_data.sh` builds synthetic versions of the two input
+tables at 1M and 10M companies (same schema, deterministic, generated inside
+BigQuery), and `gcp/04_benchmark.py` runs the same risk scoring three ways:
+
+- **Local Spark**: `gcp/spark_risk_scoring.py` on a MacBook, reading Parquet
+- **Dataproc Serverless**: the same script, reading and writing BigQuery
+- **BigQuery SQL**: the scoring rules written as one `CREATE TABLE AS SELECT`
+
+All three produced identical risk-category counts at both scales.
+
+![Benchmark at 10M companies](images/benchmark_10m.png)
+
+| Scale | Engine | Compute time | Billed usage | Est. cost (USD, list) |
+|---|---|---|---|---|
+| 1M | BigQuery SQL | 7.5s | 0.18 GB scanned, 23.5 slot-s | $0.0011 |
+| 1M | Local Spark* | 24.5s | n/a | $0 |
+| 1M | Dataproc Serverless | 58.8s (148.5s incl. start-up) | 865 DCU-s | $0.0158 |
+| 10M | BigQuery SQL | 4.2s | 1.83 GB scanned, 193.8 slot-s | $0.0112 |
+| 10M | Local Spark* | 37.5s | n/a | $0 |
+| 10M | Dataproc Serverless | 201.3s (281.8s incl. start-up) | 4,033 DCU-s | $0.0734 |
+
+\* Local runs skip the output write (Spark `noop` sink), because the laptop was short on disk.
+
+**What I take from it:** for this job, BigQuery SQL was about 50x faster than
+Dataproc and around 6-7x cheaper at 10M rows, and its runtime barely moved
+between 1M and 10M. When the data already sits in BigQuery and the logic fits in
+SQL, pushing the work into BigQuery is the better call. Spark earns its place when
+the logic can't be expressed in SQL, or the data lives in GCS as a lakehouse.
+
+**Caveats:**
+- Dataproc ran at the minimum size (1 driver, 2 executors) with no tuning. More
+  executors would cut its time, probably not its cost.
+- Part of Dataproc's time is moving data in and out of BigQuery through the
+  connector, which BigQuery SQL doesn't have to do.
+- Costs use us-central1 list prices; London (europe-west2) is slightly higher.
+  The BigQuery runs fell inside the 1 TiB/month free tier, so actual spend was $0.
+- One run per configuration, so treat small differences (e.g. BigQuery 1M vs 10M) as noise.
+
+Raw numbers: `gcp/benchmark_results.csv`.
+
+## How to reproduce
+
+Needs a GCP project with billing, the `gcloud` CLI, and (for the local run) PySpark + Java 17.
+
+```bash
+bash gcp/01_load_bigquery.sh               # Parquet -> GCS -> BigQuery
+bash gcp/02_run_dataproc.sh                # scoring on Dataproc, checked against original output
+bash gcp/03_generate_benchmark_data.sh     # synthetic 1M / 10M tables
+python gcp/04_benchmark.py                 # add --local-no-write if disk space is short
+```
+
+Clean up afterwards: `bq rm -r -f greenwashing_bench` and `gcloud storage rm -r gs://<project>-data/bench`.
 
 The original project README follows below.
 
